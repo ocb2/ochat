@@ -1,0 +1,24 @@
+[package]
+name = "rschatd"
+version = "0.0.0"
+authors = ["Your Name <you@example.com>"]
+
+[features]
+default = []
+verbose = []
+debug = []
+  
+[dependencies]
+libc = "0.2"
+rbot_parser = { git = "https://github.com/Detegr/RBot-parser" }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+time = "0.1"
+
+[dependencies.rusqlite]
+version = "0.11.0"
+features = ["bundled"]
+
+[dependencies.nom]
+version = "~1.0.0"
