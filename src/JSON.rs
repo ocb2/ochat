@@ -30,7 +30,11 @@ impl<'a> IRC::Message<'a> {
 }
 
 pub fn okay(sock: &mut ZMQ::Socket) {
-  send(sock, json!({"status": 0}).to_string());
+  send(sock,
+       json!({
+         "type": "status",
+         "status": 0
+       }).to_string());
 }
 
 pub fn sync(sock: &mut ZMQ::Socket,

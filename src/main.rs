@@ -1,13 +1,17 @@
+extern crate envy;
 extern crate libc;
 extern crate nom;
 extern crate rbot_parser;
 extern crate rusqlite;
+#[macro_use]
+extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
 extern crate time;
 
 use rusqlite::Connection;
 use std::borrow::Cow;
+use std::env;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::os::unix::io::*;
@@ -33,18 +37,28 @@ const RPORT : u16 = 6668;
 
 const SCHEMA : &'static str = include_str!("schema.sql");
 
+#[derive(Deserialize, Debug)]
+struct Configuration {
+  zmq_pub_listen: String,
+  zmq_rep_listen: String,
+  sqlite_path: String
+}
+
 fn main() {
+  let config = match envy::prefixed("OCHAT_").from_env::<Configuration>() {
+    Ok(config) => config,
+    Err(e) => panic!("{:#?}", e)
+  };
+  
   let ctx = ZMQ::Context::new();
-  let mut ctx_sql = Connection::open(Path::new("chat.db")).unwrap();
+  let mut ctx_sql = Connection::open(Path::new(&config.sqlite_path)).unwrap();
   ctx_sql.execute_batch(SCHEMA).unwrap();
-//  print!("{}", SCHEMA);
-//  ctx_sql.execute("INSERT INTO networks VALUES (\"localhost\", 0)", &[]);
 
   let mut sock_pub = ctx.socket(ZMQ::PUB);
   let mut sock_rep = ctx.socket(ZMQ::REP);
 
-  sock_pub.bind("tcp://127.0.0.1:6000\0");
-  sock_rep.bind("tcp://127.0.0.1:6001\0");
+  sock_pub.bind(&config.zmq_pub_listen);
+  sock_rep.bind(&config.zmq_rep_listen);
 
   let mut o = TcpStream::connect((RHOST, RPORT)).unwrap();
   let mut irc = IRC::Context::init(NICK, USER, REAL);
@@ -83,7 +97,7 @@ fn main() {
 
       let line = IRC::readline(&mut o);
       let msg = IRC::parse::parse_message("localhost", id, &line).unwrap();
-      println!("items:{:?}\n, msg:{:?}\n serailize:{}\n", items, msg, msg.serialize());
+      //println!("items:{:?}\n, msg:{:?}\n serailize:{}\n", items, msg, msg.serialize());
 
       let (command, numeric) : (Option<String>, Option<u16>) = match msg.command {
         IRC::Command::Named(ref c) => (Some(c.clone().into_owned()), None),
