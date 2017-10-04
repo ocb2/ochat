@@ -41,6 +41,3 @@ CREATE TABLE IF NOT EXISTS params (
   PRIMARY KEY (id, network, idx),
   FOREIGN KEY (id, network) REFERENCES messages(id, network)
 );
-
-/* can't be primary key because not unique */
-/*CREATE INDEX date_idx ON log(date);*/

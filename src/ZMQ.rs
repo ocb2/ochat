@@ -3,6 +3,7 @@ extern crate libc;
 use std::slice;
 use std::ops::BitOr;
 
+#[allow(dead_code)]
 pub enum SocketType {
   PAIR = 0,
   PUB = 1,
@@ -18,6 +19,7 @@ pub enum SocketType {
   STREAM = 11,
 }
 
+#[allow(dead_code)]
 pub enum PollEvent {
   IN = 1,
   OUT = 2,
@@ -50,6 +52,7 @@ pub struct Msg {
 }
 
 #[link(name = "zmq")]
+#[allow(dead_code)]
 extern {
   fn zmq_bind(socket: *const libc::c_void,
               endpoint: *const libc::c_char) -> libc::c_int;
@@ -134,11 +137,12 @@ impl Msg {
   }
 }
 
+#[allow(dead_code)]
 pub fn errno() -> i32 {
   return unsafe { zmq_errno() };
 }
 
-// note: rolls over if items has >2^32 elements
+// note: rolls over if items has >=2^32 elements
 pub fn poll(items: &mut [PollItem], timeout: i64) -> i32 {
   return unsafe { zmq_poll(items.as_ptr() as *mut _, items.len() as i32, timeout) };
 }

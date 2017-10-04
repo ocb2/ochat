@@ -2,16 +2,12 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::net::TcpStream;
-use std;
-use nom::*;
-use nom;
 use std::borrow::Cow;
-use std::str::from_utf8;
-use nom::space;
-use nom::IResult::*;
-use std::str::FromStr;
 use std::fmt;
 
+use error::*;
+
+// stuff from https://github.com/Detegr/RBot-parser
 #[derive(PartialEq, Debug)]
 pub enum Prefix<'a> {
   User(&'a str, &'a str, &'a str),
@@ -65,6 +61,12 @@ impl<'a> fmt::Display for Message<'a> {
 }
 
 pub struct Context<'a> {
+  pub sock: TcpStream,
+  pub id: &'a str,
+
+  pub host: &'a str,
+  pub port: u16,
+  
   pub nick: &'a str,
   pub ident: &'a str,
   pub realname: &'a str,
@@ -72,48 +74,52 @@ pub struct Context<'a> {
   pub channels: Vec<String>
 }
 impl<'a> Context<'a> {
-  pub fn init(nick: &'a str, ident: &'a str, realname: &'a str) -> Context<'a> {
-    return Context {
-      nick: nick,
-      ident: ident,
-      realname: realname,
-      channels: Vec::new()
-    };
-  }
-  pub fn connect(&self,
-                 sock : &mut TcpStream,
-                 nick : &str,
-                 user : &str,
-                 realname : &str) {
-    sock.write(format!("NICK {nick}\nUSER {user} 8 * : {realname}\n",
-                       nick=self.nick,
-                       user=self.ident,
-                       realname=self.realname).as_bytes());
+  pub fn connect(&mut self) -> Result<()> {
+    let s = format!("NICK {nick}\nUSER {user} 8 * : {realname}\n",
+                    nick=self.nick,
+                    user=self.ident,
+                    realname=self.realname);
+    self.sock.write_all(s.as_bytes()).chain_err(|| "TCP: write failure")?;
+    return Ok(());
   }
   
-  pub fn privmsg(&self, sock : &mut TcpStream, r : &str, m : &str) {
-    sock.write(format!("PRIVMSG {recvr} :{msg}\n",
+  pub fn privmsg(&mut self, r : &str, m : &str) -> Result<()> {
+    self.sock.write_all(format!("PRIVMSG {recvr} :{msg}\n",
                        recvr=r,
-                       msg=m).as_bytes());
+                       msg=m).as_bytes()).chain_err(|| "TCP: write failure")?;
+    return Ok(());
   }
 
-  pub fn join(&mut self, sock : &mut TcpStream, c : &str) { 
-    sock.write(format!("JOIN {channel}\n", channel=c).as_bytes());
+  pub fn join(&mut self, c : &str) -> Result<()> { 
+    self.sock.write_all(format!("JOIN {channel}\n", channel=c).as_bytes()).chain_err(|| "TCP: write failure")?;
     self.channels.push(c.to_string());
+    return Ok(());
   }
 
-  pub fn part(&self, sock : &mut TcpStream, c : &str, r: &str) {
-    sock.write(format!("PART {channel} :{reason}\n",
+  pub fn part(&mut self, c : &str, r: &str) -> Result<()> {
+    self.sock.write_all(format!("PART {channel} :{reason}\n",
                        channel=c,
-                       reason=r).as_bytes());
+                       reason=r).as_bytes()).chain_err(|| "TCP: write failure")?;
+    return Ok(());
   }
 
   // TODO use less write() calls
-  pub fn pong(&self, sock : &mut TcpStream, s : String) {
-    sock.write("PONG :".as_bytes());
-    sock.write(s.as_bytes());
-    sock.write("\n".as_bytes());
+  pub fn pong(&mut self, s : String) -> Result<()> {
+    self.sock.write_all("PONG :".as_bytes()).chain_err(|| "TCP: write failure")?;
+    self.sock.write_all(s.as_bytes()).chain_err(|| "TCP: write failure")?;
+    self.sock.write_all("\n".as_bytes()).chain_err(|| "TCP: write failure")?;
+    return Ok(());
   }
+}
+
+pub fn lookup<'a,'b>(id: &'a str, ctxs: &Vec<Context<'b>>) -> usize {
+  for i in 0..ctxs.len() {
+    if id == ctxs[i].id {
+      return i;
+    }
+  }
+
+  panic!("context not found\n");
 }
 
 pub fn readline(sock : & mut TcpStream) -> String {
@@ -127,16 +133,17 @@ pub fn readline(sock : & mut TcpStream) -> String {
   return buf;
 }
 
+// taken from https://github.com/Detegr/RBot-parser , i had to modify it slightly
+// to get it to work correctly, so it is here instead of used a dependency
+// TODO: file pull request/fork
+// also TODO: port this to latest version of nom
 pub mod parse {
   use std;
   use nom::*;
-  use nom;
-  use std::borrow::Cow;
   use std::str::from_utf8;
   use nom::space;
   use nom::IResult::*;
   use std::str::FromStr;
-  use std::fmt;
 
   named!(nick_parser <&[u8], &str>, map_res!(chain!(nick: take_until!("!") ~ tag!("!"), ||{nick}), from_utf8));
   named!(user_parser <&[u8], &str>, map_res!(chain!(user: take_until!("@") ~ tag!("@"), ||{user}), from_utf8));
@@ -157,8 +164,8 @@ pub mod parse {
       &self.data
     }
   }
-  impl<'a> From<nom::Err<&'a [u8]>> for ParserError {
-    fn from(e: nom::Err<&'a [u8]>) -> ParserError {
+  impl<'a> From<Err<&'a [u8]>> for ParserError {
+    fn from(e: Err<&'a [u8]>) -> ParserError {
       ParserError {
         data: format!("Error: {:?}", e)
       }
