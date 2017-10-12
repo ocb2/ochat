@@ -71,7 +71,7 @@ or:
 
 or it may be ```null```.
 
-## server
+## account
 
 In many IRC programs, the way handling multiple servers works is that generally you put in the server details somewhere, and then it connects, and stays connected for the duration of the session, and then won't reconnect to it on the next session unless you explicitly ask it to. Since ochat is designed to run as a daemon, with no concept of sessions, it makes instead more sense to just keep connected to every server it knows about unless explicitly asked otherwise.
 
@@ -91,15 +91,17 @@ In IRC, several additional fields must be set: *nick*, *ident*, *real*, all stri
 
 ```
 {
-  "type": "server",
+  "type": "account",
   "operator": "add",
   "protocol": "IRC",
   "id": "my local server",
-  "host": "localhost",
-  "port": 1234,
-  "nick": "hello",
-  "ident": "world",
-  "realname": "helloworld"
+  "network": {
+    "host": "localhost",
+    "port": 1234,
+    "nick": "hello",
+    "ident": "world",
+    "realname": "helloworld"
+  }
 }
 ```
 
@@ -107,7 +109,7 @@ In IRC, several additional fields must be set: *nick*, *ident*, *real*, all stri
 
 ```
 {
-  "type": "server",
+  "type": "account",
   "operator": "remove",
   "protocol": "IRC",
   "id": "my local server"
@@ -118,7 +120,7 @@ In IRC, several additional fields must be set: *nick*, *ident*, *real*, all stri
 
 ```
 {
-  "type": "server",
+  "type": "account",
   "operator": "enable",
   "protocol": "IRC",
   "id": "my local server"
@@ -129,7 +131,7 @@ In IRC, several additional fields must be set: *nick*, *ident*, *real*, all stri
 
 ```
 {
-  "type": "server",
+  "type": "account",
   "operator": "disable",
   "protocol": "IRC",
   "id": "my local server"
@@ -140,9 +142,8 @@ In IRC, several additional fields must be set: *nick*, *ident*, *real*, all stri
 
 ```
 {
-  "type": "server",
-  "operator": "list",
-  "protocol": "IRC"
+  "type": "account",
+  "operator": "list"
 }
 ```
 
@@ -153,11 +154,13 @@ The response to this should then be:
   {
   "protocol": "IRC",
   "id": "my local server",
-  "host": "localhost",
-  "port": 1234,
-  "nick": "hello",
-  "ident": "world",
-  "realname": "helloworld"
+  "network": {
+    "host": "localhost",
+    "port": 1234,
+    "nick": "hello",
+    "ident": "world",
+    "realname": "helloworld"
+  }
   },
   ...
 ]
